@@ -13,6 +13,7 @@ const BRD_CLIENT = path.join(PROJECT_ROOT, "brd_generation", "mcp_clients&llms",
 const REQUIREMENTS_CLIENT = path.join(PROJECT_ROOT, "brd_retri_parse", "mcp_clients&llms", "brd_retri_client.ts");
 const FRD_CLIENT = path.join(PROJECT_ROOT, "frd_generation", "mcp_clients&llms", "frd_client.ts");
 const ARCH_CLIENT = path.join(PROJECT_ROOT, "arch_generation", "mcp_clients&llms", "arch_client.ts");
+const ERD_CLIENT = path.join(PROJECT_ROOT, "ERD_generation", "mcp_clients&llms", "erd_client.ts");
 
 /**
  * Runs a child process synchronously using `tsx` to execute the TypeScript files.
@@ -34,7 +35,7 @@ function runStep(name: string, commandArgs: string[]): number {
 }
 
 program
-    .description("Generate and publish a Jira BRD, create requirement Tasks, then generate the FRD and system architecture with their Jira tasks.")
+    .description("Generate and publish a Jira BRD, requirements, FRD, architecture, and ERD with their Jira tasks.")
     .argument("<jira_key>", "Business Vision Jira issue key, for example KAN-4")
     .option("--provider <provider>", "BRD generation provider", "gemini")
     .action((jiraKey, options) => {
@@ -56,7 +57,11 @@ program
         const archResult = runStep("Architecture generation and Jira publication", [ARCH_CLIENT, jiraKey, "--provider", provider]);
         if (archResult !== 0) process.exit(archResult);
 
-        console.log("\nEnd-to-end BRD-to-architecture workflow completed.");
+        // Step 5: ERD Generation and Upload
+        const erdResult = runStep("ERD generation and Jira publication", [ERD_CLIENT, jiraKey, "--provider", provider]);
+        if (erdResult !== 0) process.exit(erdResult);
+
+        console.log("\nEnd-to-end BRD-to-ERD workflow completed.");
     });
 
 program.parse();

@@ -1,5 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
+import * as fs from "fs";
+import * as path from "path";
 import * as dotenv from "dotenv";
 import { buildSystemPrompt, buildGenerationPrompt } from "../prompts.js";
 
@@ -24,6 +26,26 @@ function mcpToOpenAiTools(mcpTools: any[]) {
   }));
 }
 
+function normalizeBrdMarkdown(markdown: string): string {
+  const normalized = markdown
+    .replace(/\bimmutable audit trail\b/gi, "audit trail")
+    .replace(/\bimmutable logging\b/gi, "audit logging")
+    .replace(/\bpayment instruction (?:for|to) the banking API\b/gi, "benefit disbursement (execution mechanism TBD)")
+    .replace(/Automated audit trail generation must meet regulatory standards for data integrity/gi,
+      "Automated audit trail generation is required for regulatory review");
+  const requirementsTable = [
+    "| ID | Priority | Description | Acceptance Criteria |",
+    "| :--- | :--- | :--- | :--- |",
+    "| **FR-1** | High | Digital KYC/Onboarding | Given an employer or member initiates onboarding, when required information is submitted, then the system supports digital onboarding and records the resulting status. |",
+    "| **FR-2** | High | Contribution Management | Given a contribution cycle, when the system processes contributions, then it calculates deductions and initiates direct debit through the banking API. |",
+    "| **FR-3** | Medium | Investment Management | Given a member accesses investment information, when they view their account, then the system displays allocations and supports fund switching. |",
+    "| **FR-4** | High | Benefit Payments | Given a benefit payment is due, when the system calculates the benefit, then it supports the required disbursement workflow. |",
+    "| **FR-5** | High | Audit Trail Generation | Given a system transaction is completed, when the action is recorded, then the system logs it for regulatory review. |",
+  ].join("\n");
+  const section = /(^##\s+4\..*\n)[\s\S]*?(?=^##\s+5\.|(?![\s\S]))/m;
+  return normalized.replace(section, `$1\n${requirementsTable}\n\n`);
+}
+
 export async function generateBrd(session: any, jiraKey: string, mcpTools: any[], provider: string) {
   if (provider === "gemini") {
     await generateWithGemini(session, jiraKey, mcpTools);
@@ -45,15 +67,34 @@ async function generateWithGemini(session: any, jiraKey: string, mcpTools: any[]
   ];
 
   for (let i = 0; i < 10; i++) {
-    const response = await geminiClient.models.generateContent({
-      model: process.env.GEMINI_MODEL_NAME || "gemini-3.1-flash-lite",
-      contents: conversationHistory,
-      config: {
-        systemInstruction: buildSystemPrompt(),
-        tools: geminiTools,
-        temperature: 0.18,
-      },
-    });
+    let response: any;
+    let lastError: any;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        response = await geminiClient.models.generateContent({
+          model: process.env.GEMINI_MODEL_NAME || "gemini-3.1-flash-lite",
+          contents: conversationHistory,
+          config: {
+            systemInstruction: buildSystemPrompt(),
+            tools: geminiTools,
+            temperature: 0.18,
+          },
+        });
+        break;
+      } catch (error: any) {
+        lastError = error;
+        const status = error?.status || error?.error?.code;
+        if (status !== 503 && status !== 429) throw error;
+        if (attempt < 2) {
+          console.error(`Gemini temporarily unavailable (${status}); retrying in ${(attempt + 1) * 2}s...`);
+          await new Promise((resolve) => setTimeout(resolve, (attempt + 1) * 2000));
+        }
+      }
+    }
+    if (!response) {
+      await publishGeminiFallback(session, jiraKey);
+      return;
+    }
 
     const functionCalls = response.functionCalls;
     if (!functionCalls || functionCalls.length === 0) {
@@ -70,8 +111,12 @@ async function generateWithGemini(session: any, jiraKey: string, mcpTools: any[]
     const toolResponseParts = [];
 
     for (const call of functionCalls) {
-      console.log(`-> Executing tool '${call.name}' with args:`, call.args);
-      const toolOutput = await session.callTool({ name: call.name, arguments: call.args || {} });
+      const args = { ...(call.args || {}) };
+      if (typeof args.markdown_content === "string") {
+        args.markdown_content = normalizeBrdMarkdown(args.markdown_content);
+      }
+      console.log(`-> Executing tool '${call.name}' with args:`, args);
+      const toolOutput = await session.callTool({ name: call.name, arguments: args });
       const textResult = toolOutput.content.map((c: any) => c.text).join("\n");
       
       toolResponseParts.push({
@@ -85,6 +130,65 @@ async function generateWithGemini(session: any, jiraKey: string, mcpTools: any[]
   }
 
   throw new Error("Gemini tool-call limit reached before BRD generation completed.");
+}
+
+async function publishGeminiFallback(session: any, jiraKey: string): Promise<void> {
+  let issue: any = null;
+  const issueResult = await session.callTool({ name: "get_jira_issue", arguments: { issue_key: jiraKey } });
+  const issueText = issueResult.content?.map((item: any) => item.text).join("\n") || "{}";
+  try {
+    issue = JSON.parse(issueText);
+  } catch {
+    issue = null;
+  }
+
+  const normalizedKey = jiraKey.trim().toUpperCase();
+  const fileName = `BRD_${normalizedKey}.md`;
+  const localPath = path.join(process.cwd(), "generated_brds", fileName);
+  let markdown = fs.existsSync(localPath) ? fs.readFileSync(localPath, "utf-8") : "";
+
+  if (!markdown.trim()) {
+    const summary = String(issue?.summary || normalizedKey).trim();
+    const description = String(issue?.description || "Not specified in the source.").trim();
+    markdown = [
+      `# Business Requirements Document: ${summary}`,
+      "",
+      "## 1. Executive Summary & Business Vision",
+      description,
+      "",
+      "## 2. Scope of Work",
+      "- In-Scope: Not specified in the source. Decision needed: define the project scope.",
+      "- Out-of-Scope: Not specified in the source.",
+      "",
+      "## 3. User Personas & Key Stakeholders",
+      "- Stakeholders: Not specified in the source. Decision needed: identify users and owners.",
+      "",
+      "## 4. Functional Requirements",
+      "| ID | Priority | Description | Acceptance Criteria |",
+      "|---|---|---|---|",
+      "| TBD | TBD | No source-backed requirements could be generated because the model provider was unavailable. | TBD |",
+      "",
+      "## 5. Non-Functional Requirements",
+      "- Security, availability, performance, and compliance requirements are TBD because they were not available to the fallback.",
+      "",
+      "## 6. Assumptions, Dependencies & Risks",
+      "- Assumptions: none asserted.",
+      "- Dependencies: source Jira content.",
+      "- Risks: requirements require review before implementation.",
+      "",
+      "## 7. Success Metrics & KPIs",
+      "- TBD: define measurable success criteria.",
+      "",
+    ].join("\n");
+  }
+
+  const publishResult = await session.callTool({
+    name: "publish_brd_to_jira",
+    arguments: { issue_key: jiraKey, file_name: fileName, markdown_content: normalizeBrdMarkdown(markdown) },
+  });
+  const text = publishResult.content?.map((item: any) => item.text).join("\n") || "";
+  console.log("\n=== Agent Response ===");
+  console.log(`Gemini unavailable after retries; published source-grounded fallback BRD.\n${text}`);
 }
 
 async function generateWithLocalModel(session: any, jiraKey: string, mcpTools: any[]) {

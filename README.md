@@ -1,6 +1,6 @@
-# BRD-to-Architecture Jira Workflow
+# BRD-to-ERD Jira Workflow
 
-This TypeScript project generates a Business Requirements Document (BRD) from a Jira Business Vision Epic, creates Jira issues for its functional requirements, then generates and publishes a Functional Requirements Document (FRD) and system architecture.
+This TypeScript project generates a Business Requirements Document (BRD) from a Jira Business Vision Epic, creates Jira issues for its functional requirements, then generates and publishes a Functional Requirements Document (FRD), system architecture, and relational database ERD.
 
 ## Requirements
 
@@ -57,6 +57,7 @@ The workflow runs these stages in order and stops when a stage fails:
 2. **Requirement parsing:** parses functional requirements from the BRD and creates or updates a Jira Task for each requirement.
 3. **FRD generation:** reads the BRD and related Jira issues, then publishes the FRD and story sub-tasks.
 4. **Architecture generation:** reads the FRD and story tasks, then publishes the architecture document and component sub-tasks.
+5. **ERD generation:** reads the architecture components and FRD, then publishes the database schema, Mermaid ERD, and entity sub-tasks.
 
 The workflow makes changes in Jira. A failed run can leave earlier stages' updates in place; fix the reported error before rerunning.
 
@@ -69,9 +70,10 @@ npx tsx 'brd_generation/mcp_clients&llms/brd_client.ts' KAN-4 --provider gemini
 npx tsx 'brd_retri_parse/mcp_clients&llms/brd_retri_client.ts' KAN-4
 npx tsx 'frd_generation/mcp_clients&llms/frd_client.ts' KAN-4 --provider gemini
 npx tsx 'arch_generation/mcp_clients&llms/arch_client.ts' KAN-4 --provider gemini
+npx tsx 'ERD_generation/mcp_clients&llms/erd_client.ts' KAN-4 --provider gemini
 ```
 
-Run them in the order shown. The FRD and architecture clients also support `--model <name>` and `--output <path>`.
+Run them in the order shown. The FRD, architecture, and ERD clients support `--model <name>` and `--output <path>`.
 
 ## Output
 
@@ -80,6 +82,7 @@ Generated local documents are written to:
 - `generated_brds/BRD_<EPIC_KEY>.md`
 - `generated_frds/FRD_<EPIC_KEY>.md`
 - `generated_arch/ARCH_<EPIC_KEY>.md`
+- `generated_erd/ERD_<EPIC_KEY>.md`
 
 These generated directories are ignored by Git.
 
@@ -126,6 +129,15 @@ These generated directories are ignored by Git.
         ├── customfun.ts
         ├── jira_fetch.ts
         └── jira_publish.ts
+├── ERD_generation/
+│   ├── prompts.ts
+│   ├── mcp_clients&llms/
+│   │   ├── erd_agent.ts
+│   │   └── erd_client.ts
+│   └── mcp_server&functions/
+│       ├── customfun.ts
+│       ├── jira_fetch.ts
+│       └── jira_publish.ts
 ```
 
 The `mcp_clients&llms/` folders contain stage clients and model-generation code. The `mcp_server&functions/` folders contain Jira MCP servers and their fetch, publish, and parsing helpers.

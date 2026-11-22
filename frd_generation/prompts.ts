@@ -20,6 +20,7 @@ Create exactly one user story for each unique source FR, using the Epic plus KAN
 Before returning the JSON, perform this document-quality acceptance review:
 - Confirm all ten FRD sections are present and contain project-specific information. Do not replace required sections with a short summary or omit sections; use Proposed/TBD plus the decision needed when source material is insufficient.
 - Make every use case, workflow, entity, interface, constraint, and decision traceable to a source FR or explicitly label it Proposed/TBD. Do not invent endpoint paths, data fields, roles, regulations, or numeric service levels.
+- Do not assume payroll-file inputs, real-time fund data, immutable audit storage, or a banking interface for benefit disbursements unless the source explicitly requires them.
 - Ensure each source FR appears exactly once in the traceability matrix and has exactly one corresponding user story. Keep story IDs unique and consistent with the schema.
 - Keep the Markdown FRD and structured stories consistent. Acceptance scenarios must be observable and independently testable; avoid vague results such as "works correctly" or "is user-friendly".
 - Edit for professional, concise language. Remove duplicate headings, repeated sentences, boilerplate, and duplicated facts across sections. Use cross-references to FR/story IDs instead of copying descriptions into multiple sections; repetition of an ID in the traceability matrix is allowed.

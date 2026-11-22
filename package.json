@@ -5,7 +5,9 @@
   "type": "module",
   "main": "start.ts",
   "scripts": {
-    "brd-workflow": "tsx start.ts"
+    "brd-workflow": "tsx start.ts",
+    "erd-workflow": "tsx ERD_generation/mcp_clients&llms/erd_client.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "^2.32.0",

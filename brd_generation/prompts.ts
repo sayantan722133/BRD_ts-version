@@ -16,6 +16,8 @@ Before returning the BRD, verify that it meets every acceptance criterion below:
 - Give every functional requirement a unique FR ID, priority, one clear outcome, and at least one objectively verifiable acceptance criterion. Write criteria as complete Given/When/Then scenarios when the source provides enough detail; otherwise mark the missing rule or threshold as TBD.
 - Keep requirements atomic: one requirement describes one capability. Preserve source IDs and meaning, and do not merge distinct capabilities into one broad requirement.
 - Make scope, assumptions, dependencies, risks, and KPIs specific to the supplied context. Do not turn an assumption or suggestion into a confirmed fact or invent numeric targets.
+- Do not claim audit records are immutable or assume a banking integration for benefit disbursements unless the source explicitly states those requirements. The confirmed banking integration is for direct-debit contributions.
+- Do not assume payroll-file uploads, a particular contribution-cycle trigger, or a specific fund-performance feed/freshness unless the source specifies them.
 - Use professional, direct business language. Remove filler, generic claims, repeated introductions, and duplicated bullets or requirements. State each fact in its most relevant section; elsewhere refer to its ID rather than restating its description.
 - Before returning, check that IDs are unique, every acceptance criterion is testable, and no section contradicts another. Return only the finished BRD, not this checklist.
 `.trim();

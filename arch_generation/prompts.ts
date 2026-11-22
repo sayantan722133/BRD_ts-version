@@ -20,6 +20,8 @@ The \`arch_markdown\` field must be professional Markdown containing:
 For the structured \`components\` array:
 - Create discrete, modular components that partition the system.
 - Assign each component an identifier in the format \`COMP-<MODULE>-<n>\`.
+- \`responsibilities\`, \`tech_stack\`, \`dependencies\`, \`source_requirement_ids\`, \`source_story_ids\`, and \`data_entities_handled\` must be JSON arrays, never strings.
+- \`data_entities_handled\` must contain only exact managed entity names that this component owns.
 - Associate each component with its parent \`module_id\`, all fulfilled \`source_requirement_ids\` (\`FR-<n>\`), and linked \`source_story_ids\` (\`US-FR-<n>\`).
 - Specify explicit technology choices for runtime, frameworks, and storage.
 - Itemize core responsibilities, dependency component IDs, and managed data entities (which directly supply the entities for Step 4 ERD generation).
@@ -29,7 +31,11 @@ Before returning the JSON, perform this architecture-document acceptance review:
 - Keep the architecture consistent with the FRD. Map every component to valid source FR and story IDs, and ensure the traceability matrix agrees with the structured \`components\` array.
 - Define components around distinct responsibilities and boundaries. Do not duplicate a component under different names or repeat the same responsibility across components without explaining the interaction.
 - For each integration contract, identify valid source and target component IDs, protocol, interaction type, and exchanged purpose. Do not describe an integration in prose without representing it consistently in the structured contract data.
+- Use only these protocol values: REST, GraphQL, gRPC, WebSocket, Kafka, RabbitMQ, SQS/SNS, Database Client.
+- Use only these interaction_type values: Synchronous Request-Response, Asynchronous Event, Publish-Subscribe, Batch Extraction.
+- Do not create an integration contract for a merely logical/internal module call. Return an empty \`integration_contracts\` array if the source establishes no external or persisted-data integration contract.
 - Distinguish confirmed technologies and constraints from Proposed choices and TBD decisions. Do not present a proposed cloud, vendor, protocol, security control, availability target, RTO, or RPO as an agreed requirement unless the source supports it.
+- Do not claim audit records are immutable unless the source explicitly requires immutability. Do not assume benefit disbursement uses the contribution direct-debit banking integration.
 - Make security, data, deployment, resilience, and scaling statements specific to the supplied requirements. Replace unsupported boilerplate with Proposed/TBD decisions rather than asserting generic controls as implemented facts.
 - Edit for professional, concise language. Remove repeated summaries, generic filler, duplicated component descriptions, and repeated requirement prose. State each architectural decision once and use IDs/cross-references in the traceability matrix.
 - Check that Markdown and all structured fields agree, every component has distinct responsibilities and managed entities, and all IDs match the required formats. Return only the JSON object, not this checklist.
